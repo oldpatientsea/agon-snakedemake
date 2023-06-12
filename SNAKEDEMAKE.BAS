@@ -1,0 +1,323 @@
+   10 REM *** SNAKEDEMAKE ***
+   20 REM A TEXT ADVENTURE REIMAGINING OF THE GAME "SNAKE"
+   30 REM BY OLDPATIENTSEA FOR AN OLIMEX CONTEST 2023
+   40 REM BASED ON THE HUNT THE WUMPUS BY GREGORY YOB 1973
+   50 REM H/T ROBERT LOWE ADAPTATION FOR THE AGON LIGHT 2023
+   60 :
+   70 REM GLOBAL VARIABLES
+   80 REM **************************************************************************************************
+   90 REM CAVENETWORK SHOWS THE CAVERNS YOU CAN TRAVEL TO FROM EACH CAVERN
+  100 DIM CAVENETWORK(20,3)
+  110 :
+  120 REM KEYLOCATIONS(1) = YOUR LOCATION
+  130 REM KEYLOCATIONS(2) = HADES
+  140 REM KEYLOCATIONS(3) = EXIT 1
+  150 REM KEYLOCATIONS(4) = EXIT 2
+  160 REM KEYLOCATIONS(5) = GEM 1
+  170 REM KEYLOCATIONS(6) = GEM 2
+  180 DIM KEYLOCATIONS(6)
+  190 :
+  200 REM CACHE FOR STATE SO CAN BE REPLAYED ON FAILURE
+  210 DIM CACHEDKEYLOCATIONS(6) :
+  220 :
+  230 REM TESTED IN ENDGAME SECTION
+  240 REM 1 = FOUND ONE GEM
+  250 REM 2 = FOUND BOTH GEMS
+  260 REM 3 = ESCAPED WITHOUT GEMS
+  270 REM 4 = TRAPPED BY OWN TAIL AND CRUSHED
+  280 ENDGAMESTATUS = 0
+  290 :
+  300 REM HOLDS YOUR LOCATION WHILE CHECKING LEGALITY OF MOVES
+  310 PLAYERLOCATION = 0
+  320 :
+  330 REM HOW MANY GEMS YOU HAVE FOUND
+  340 GEMSFOUND = 0
+  350 :
+  360 REM HOW MANY CAVERNS YOUR SERPENT BODY FILLS
+  370 SNAKELENGTH = 1 : REM RIGHT BEFORE GAME LOOP, INCREASELENGTH TO 3 TO INCREASE PRESSURE ON PLAYER
+  380 :
+  390 REM CHAMBERS BLOCKED BY BODY (1 = TIP OF TAIL, 2 = NEXT SEGMENT..., SNAKELENGTH = HEAD)
+  400 DIM SNAKEBODY(20)
+  410 :
+  420 REM **************************************************************************************************
+  430 :
+  440 CLS : CLG
+  450 PROC_SPLASH
+  460 PROC_SETUPCAVENETWORK
+  470 PROC_ASSIGNKEYLOCATIONS
+  480 PROC_INIT
+  490 PROC_INTRO
+  500 PROC_OFFERINSTRUCTIONS
+  510 PROC_INCREASELENGTH
+  520 REPEAT
+  530   PROC_RENDERLOCATION
+  540   IF ENDGAMESTATUS = 4 GOTO 560 : REM CANNOT MOVE IF TRAPPED
+  550   PROC_MOVE
+  560 UNTIL ENDGAMESTATUS<>0
+  570 PROC_DISPLAYENDGAMESTATUS(ENDGAMESTATUS)
+  580 PRINT "PLAY AGAIN? (Y-N)";
+  590 INPUT I$
+  600 IF (I$ <> "Y") AND (I$ <> "y") THEN END
+  610 PRINT "SAME LAYOUT? (Y-N)";
+  620 INPUT I$
+  630 IF (I$ <> "Y") AND (I$ <> "y") THEN GOTO 470
+  640 PROC_RESTORECACHEDKEYLOCATIONS
+  650 GOTO 480
+  660 END
+  670 :
+  680 DEF PROC_SPLASH
+  690 PRINT "In nova fert animus mutatas dicere formas / corpora - Ovid"
+  700 PRINT
+  710 PRINT "                              ==="
+  720 PRINT
+  730 ENDPROC
+  740 :
+  750 DEF PROC_OFFERINSTRUCTIONS
+  760 PRINT "INSTRUCTIONS (Y-N)";
+  770 INPUT I$
+  780 IF (I$ = "Y") OR (I$ = "y") THEN PROC_INSTRUCTIONS
+  790 ENDPROC
+  800 :
+  810 DEF PROC_SETUPCAVENETWORK
+  820 RESTORE
+  830 FOR J = 1 TO 20
+  840   FOR K = 1 TO 3
+  850     READ CAVENETWORK(J,K)
+  860   NEXT K
+  870 NEXT J
+  880 ENDPROC
+  890 :
+  900 DEF PROC_ASSIGNKEYLOCATIONS
+  910 REPEAT
+  920   FOR I = 1 TO 6
+  930     KEYLOCATIONS(I) = INT(20*RND(1))+1
+  940   NEXT I
+  950   REM *** MAKE SURE EACH CHAMBER HAS NO MORE THAN ONE SPECIAL ITEM ***
+  960   UNIQUE = TRUE
+  970   FOR J = 1 TO 6
+  980     FOR K = 1 TO 6
+  990       IF J <> K AND KEYLOCATIONS(J) = KEYLOCATIONS(K) THEN UNIQUE = FALSE
+ 1000     NEXT K
+ 1010   NEXT J
+ 1020 UNTIL UNIQUE = TRUE
+ 1030 REM CACHE IT FOR NEXT PLAYTHROUGH
+ 1040 FOR L = 1 TO 6
+ 1050   CACHEDKEYLOCATIONS(L) = KEYLOCATIONS(L)
+ 1060 NEXT L
+ 1070 ENDPROC
+ 1080 :
+ 1090 DEF PROC_INIT
+ 1100 ENDGAMESTATUS = 0
+ 1110 PLAYERLOCATION = KEYLOCATIONS(1)
+ 1120 GEMSFOUND = 0
+ 1130 SNAKELENGTH = 3
+ 1140 FOR I = 1 TO 20 : SNAKEBODY(I) = 0 : NEXT I
+ 1150 ENDPROC
+ 1160 :
+ 1170 DEF PROC_RENDERLOCATION
+ 1180 PRINT "You are in room ";PLAYERLOCATION
+ 1190 FOR J = 2 TO 6
+ 1200   FOR K = 1 TO 3
+ 1210     IF CAVENETWORK(PLAYERLOCATION,K) <> KEYLOCATIONS(J) THEN 1290
+ 1220     ON J-1 GOTO 1230,1250,1250,1280,1280
+ 1230     PRINT: PRINT "There is a strange smell like smoke, pepper, tar or licorice."
+ 1240     GOTO 1290
+ 1250     PRINT: PRINT "You feel a draft and smell clean air from outside."
+ 1260     PROC_PRINTEXITS
+ 1270     GOTO 1290
+ 1280     PRINT: PRINT "You sense the Goddess nearby, or something precious to her!"
+ 1290   NEXT K
+ 1300 NEXT J
+ 1310 PRINT
+ 1320 PRINT "Tight passages lead to : ";
+ 1330 IF SNAKEBODY(CAVENETWORK(PLAYERLOCATION,1)) = 0 PRINT CAVENETWORK(PLAYERLOCATION,1),;
+ 1340 IF SNAKEBODY(CAVENETWORK(PLAYERLOCATION,2)) = 0 PRINT CAVENETWORK(PLAYERLOCATION,2),;
+ 1350 IF SNAKEBODY(CAVENETWORK(PLAYERLOCATION,3)) = 0 PRINT CAVENETWORK(PLAYERLOCATION,3),;
+ 1360 PRINT
+ 1370 PROC_PRINTBLOCKEDEXITS
+ 1380 PRINT
+ 1390 ENDPROC
+ 1400 :
+ 1410 DEF PROC_MOVE
+ 1420 LASTLOCATION = KEYLOCATIONS(1)
+ 1430 PROC_INPUTPLAYERMOVE
+ 1440 PROC_MOVETAIL(LASTLOCATION)
+ 1450 PRINT
+ 1460 IF KEYLOCATIONS(1) = KEYLOCATIONS(2) THEN PROC_ENCOUNTERHADES
+ 1470 IF KEYLOCATIONS(1) = KEYLOCATIONS(3) OR KEYLOCATIONS(1) = KEYLOCATIONS(4) THEN PROC_ENCOUNTEREXITS
+ 1480 IF KEYLOCATIONS(1) = KEYLOCATIONS(5) OR KEYLOCATIONS(1) = KEYLOCATIONS(6) THEN PROC_ENCOUNTERGEMS
+ 1490 ENDPROC
+ 1500 :
+ 1510 DEF PROC_ENCOUNTERHADES
+ 1520 PRINT "Hades is here and laughs at your plight as you squeeze past!"
+ 1530 PRINT
+ 1540 PROC_INCREASELENGTH
+ 1550 ENDPROC
+ 1560 :
+ 1570 DEF PROC_ENCOUNTEREXITS
+ 1580 IF GEMSFOUND = 0 ENDGAMESTATUS = 3 ELSE ENDGAMESTATUS = GEMSFOUND
+ 1590 ENDPROC
+ 1600 :
+ 1610 DEF PROC_ENCOUNTERGEMS
+ 1620 PRINT
+ 1630 IF GEMSFOUND = 0 THEN PRINT "You find one of the holy gems and, having no hands, swallow it!"
+ 1640 IF GEMSFOUND = 1 THEN PRINT "You excitedly swallow the second gem: now you need to escape!"
+ 1650 PRINT
+ 1660 GEMSFOUND = GEMSFOUND+1
+ 1670 IF PLAYERLOCATION = KEYLOCATIONS(5) THEN KEYLOCATIONS(5) = 0
+ 1680 IF PLAYERLOCATION = KEYLOCATIONS(6) THEN KEYLOCATIONS(6) = 0
+ 1690 PROC_INCREASELENGTH
+ 1700 ENDPROC
+ 1710 :
+ 1720 DEF PROC_INCREASELENGTH
+ 1730 PRINT "The walls squeeze tighter as you feel yourself growing longer."
+ 1740 PRINT
+ 1750 GROWTH% = 2
+ 1760 SNAKELENGTH = SNAKELENGTH + GROWTH%
+ 1770 FOR I = 1 TO 20
+ 1780   IF SNAKEBODY(I) > 0 THEN SNAKEBODY(I) = SNAKEBODY(I) + GROWTH%
+ 1790 NEXT I
+ 1800 ENDPROC
+ 1810 :
+ 1820 DEF PROC_INPUTPLAYERMOVE
+ 1830 LEGALMOVE = FALSE
+ 1840 REPEAT
+ 1850   PRINT "Where to";
+ 1860   INPUT NEWLOCATION
+ 1870   REM *** CHECK IF LEGAL MOVE ***
+ 1880   FOR K = 1 TO 3
+ 1890     IF CAVENETWORK(PLAYERLOCATION,K) = NEWLOCATION AND SNAKEBODY(NEWLOCATION) = 0 THEN LEGALMOVE = TRUE
+ 1900   NEXT K
+ 1910   IF NOT LEGALMOVE PRINT "Not possible - ";
+ 1920 UNTIL NEWLOCATION >= 1 AND NEWLOCATION <= 20 AND LEGALMOVE = TRUE
+ 1930 PLAYERLOCATION = NEWLOCATION
+ 1940 KEYLOCATIONS(1) = PLAYERLOCATION
+ 1950 ENDPROC
+ 1960 :
+ 1970 REM RESTORED CACHED LOCATION OF ITEMS IF PLAYER WISHES TO TRY AGAIN WITH SAME INITIAL STATE
+ 1980 DEF PROC_RESTORECACHEDKEYLOCATIONS
+ 1990 FOR J = 1 TO 6
+ 2000   KEYLOCATIONS(J) = CACHEDKEYLOCATIONS(J)
+ 2010 NEXT J
+ 2020 ENDPROC
+ 2030 :
+ 2040 DEF PROC_MOVETAIL(LASTLOCATION)
+ 2050 FOR I = 1 TO 20
+ 2060   IF SNAKEBODY(I) > 0 THEN SNAKEBODY(I) = SNAKEBODY(I)-1
+ 2070 NEXT I
+ 2080 SNAKEBODY(LASTLOCATION) =  SNAKELENGTH
+ 2090 ENDPROC
+ 2100 :
+ 2110 DEF PROC_PRINTBLOCKEDEXITS
+ 2120 BLOCKED = FALSE
+ 2130 BLOCKCOUNT = 0
+ 2140 FOR I = 1 TO 3
+ 2150   IF SNAKEBODY(CAVENETWORK(KEYLOCATIONS(1),I)) > 0 THEN BLOCKED = TRUE : BLOCKCOUNT = BLOCKCOUNT + 1
+ 2160 NEXT I
+ 2170 IF BLOCKED = TRUE THEN PRINT : PRINT "Your own tail obstructs other caverns once reachable from here."
+ 2180 IF BLOCKCOUNT = 3 THEN ENDGAMESTATUS = 4
+ 2190 ENDPROC
+ 2200 :
+ 2210 DEF PROC_PRINTEXITS
+ 2220 FOR I = 1 TO 3
+ 2230   IF CAVENETWORK(PLAYERLOCATION,I) = KEYLOCATIONS(3) OR CAVENETWORK(PLAYERLOCATION,I) = KEYLOCATIONS(4) THEN PRINT : PRINT "Daylight creeps in from: "; CAVENETWORK(PLAYERLOCATION,I)
+ 2240 NEXT I
+ 2250 ENDPROC
+ 2260 :
+ 2270 DEF PROC_DISPLAYENDGAMESTATUS(ENDGAMESTATUS)
+ 2280 ON ENDGAMESTATUS PROC_FOUNDONE, PROC_FOUNDTWO, PROC_EMPTYHANDED, PROC_CRUSHED ELSE PRINT "A God takes pity on you and saves you from your plight!"
+ 2290 ENDPROC
+ 2300 :
+ 2310 DEF PROC_FOUNDONE
+ 2320 PROC_EMPTYHANDED
+ 2330 PRINT "The hero retrieves the gem from your belly, winning the"
+ 2340 PRINT "favour of the cruel Goddess who ignored your sacrifice."
+ 2350 ENDPROC
+ 2360 :
+ 2370 DEF PROC_FOUNDTWO
+ 2380 PRINT "You escape and the Goddess rewards you for your bravery, "
+ 2390 PRINT  "transforming you back into human form."
+ 2400 PRINT
+ 2410 PRINT "But Hades - Hades, you fear, is not happy..."
+ 2420 ENDPROC
+ 2430 :
+ 2440 DEF PROC_EMPTYHANDED
+ 2450 PRINT "You escape with your life, but not your form. Free of the"
+ 2460 PRINT "confines of the tunnels, your continued growth does not"
+ 2470 PRINT "bother you at first, but your hunger grows intense."
+ 2480 PRINT
+ 2490 PRINT "You resist for three days then finally a frenzy overcomes"
+ 2500 PRINT "you and you decimate the flocks of the village you once"
+ 2510 PRINT "called home."
+ 2520 PRINT
+ 2530 PRINT "You live a miserable life, hiding in the day, slaughtering"
+ 2540 PRINT "sheep and cows by night."
+ 2550 PRINT
+ 2560 PRINT "Perhaps if you had retrieved both gems as the Goddess"
+ 2570 PRINT "Aphrodite demanded, it might have been different."
+ 2580 PRINT
+ 2590 PRINT "When a hero finally comes to slay you, it is a relief."
+ 2600 ENDPROC
+ 2610 :
+ 2620 DEF PROC_CRUSHED
+ 2630 PRINT "You are crushed to death by your new bulk against the"
+ 2640 PRINT "unyielding stone of the tunnel walls."
+ 2650 ENDPROC
+ 2660 :
+ 2670 DEF PROC_INTRO
+ 2680 PRINT "Village rumour says this is the entrance to the underworld"
+ 2690 PRINT "and few have dared explore more than the earliest of chambers."
+ 2700 PRINT "But this is where your vision has lead you."
+ 2710 PRINT
+ 2720 PRINT "Thieves have stolen two rare gems from the temple of Aphrodite"
+ 2730 PRINT "and the Goddess has approached you, in your dreams, to ask help."
+ 2740 PRINT
+ 2750 PRINT "After several hours squeezing through a maze of gloomy tunnels"
+ 2760 PRINT  "you accidentally tread on a snake, crushing his head."
+ 2770 PRINT "Before you even have time to complete the thought that you were"
+ 2780 PRINT "lucky not to have been bitten, a worse fate befalls you."
+ 2790 PRINT
+ 2800 PRINT "'Insolent mortal,' a voice bursts forth from the darkness. "
+ 2810 PRINT "Hades, Lord of the Underworld, a God more powerful than the"
+ 2820 PRINT "Goddess whom you obey."
+ 2830 PRINT
+ 2840 PRINT "'You dare sneak into my realm like a thief and worse - to kill"
+ 2850 PRINT "one of my servants? You will be punished for your greed.'"
+ 2860 PRINT
+ 2870 PRINT "With horror you find yourself transformed into a huge serpent."
+ 2880 PRINT "Huge and still growing."
+ 2890 PRINT
+ 2900 PRINT "'Your doom is to be crushed as you crushed my familiar,' the"
+ 2910 PRINT "God exclaims. 'You will continue to grow until the walls of my"
+ 2920 PRINT "realm squeeze the life from you as mercilessly as the sole of"
+ 2930 PRINT "your sandal squeezed the life from my humble servant.'"
+ 2940 PRINT
+ 2950 PRINT "Your only chance is to retrieve the treasures and escape before"
+ 2960 PRINT "you grow too large, and beg Aphrodite cure you of this curse."
+ 2970 PRINT "***************************************************************"
+ 2980 PRINT
+ 2990 ENDPROC
+ 3000 :
+ 3010 DEF PROC_INSTRUCTIONS
+ 3020 PRINT "Each chamber has three numbered exits. Pick an exit to take it."
+ 3030 PRINT
+ 3040 PRINT "As you move forward, you continue to grow and your tail fills"
+ 3050 PRINT "an increasing number of chambers behind you, preventing entry."
+ 3060 PRINT
+ 3070 PRINT "If you fail to escape in time, you will be crushed to death by"
+ 3080 PRINT "your own bulk."
+ 3090 PRINT
+ 3100 PRINT "If you escape without finding the gems Aphrodite bid you return"
+ 3110 PRINT "your destiny may be equally miserable."
+ 3120 PRINT
+ 3130 PRINT "Do not look to Hades for pity. He has none."
+ 3140 PRINT "***************************************************************"
+ 3150 PRINT
+ 3160 ENDPROC
+ 3170 :
+ 3180 REM CAVE NETWORK LINKS BETWEEN ROOMS
+ 3190 DATA 2,5,8,1,3,10,2,4,12,3,5,14,1,4,6
+ 3200 DATA 5,7,15,6,8,17,1,7,9,8,10,18,2,9,11
+ 3210 DATA 10,12,19,3,11,13,12,14,20,4,13,15,6,14,16
+ 3220 DATA 15,17,20,7,16,18,9,17,19,11,18,20,13,16,19
+ 3230 END
