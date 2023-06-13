@@ -1,5 +1,7 @@
 # snakedemake
 
+Also available as a type-in on itch.io, https://oldpatientsea.itch.io/snakedemake
+
 The classic game snake reimagined as a text-based adventure game.
 
 Originally written for the AgonLight Week Programming Challenge Issue 3 sponsored by Olimex. 
